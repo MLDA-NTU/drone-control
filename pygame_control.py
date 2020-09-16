@@ -10,7 +10,7 @@ S = 60
 # Frames per second of the pygame window display
 # A low number also results in input lag, as input information is processed once per frame.
 FPS = 120
-model = PoseNet("C:\\Users\\Nelsen\\Documents\\drone\\drone-control\\drone_vision\\posenet_mobilenet_v1_100_257x257_multi_kpt_stripped.tflite")
+model = PoseNet("drone_vision\\posenet_mobilenet_v1_100_257x257_multi_kpt_stripped.tflite")
 
 class Display(object):
     """ Tello display
@@ -18,9 +18,9 @@ class Display(object):
         The controls implemented:
             - T: Takeoff
             - L: Land
-            - Arrow keys: Forward, backward, left and right (x,y)
-            - W and S: Up and down. (z)
-            - A and D: Counter clockwise and clockwise rotations (yaw)     
+            - W, S, A, D: Forward, backward, left and right (x,y)
+            - Arrow Keys: Up and down. (z)
+            - Q and E: Counter clockwise and clockwise rotations (yaw)     
     """
     def __init__(self):
         # Init pygame
