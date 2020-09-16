@@ -8,11 +8,10 @@ tello.connect()
 tello.takeoff()
 tello.streamon()
 
-controller = True
 key = None
 
 def controls():
-    while controller:
+    while True:
         if key == ord('w'):
             tello.move_forward(30)
         elif key == ord('s'):
@@ -40,10 +39,8 @@ while True:
     # Display the resulting frame
     cv2.imshow('frame', img)
     key = cv2.waitKey(1) & 0xff
-    if key == 27:
+    if key == 27: # ESC
         tello.land()
         tello.end()
-        cv2.destroyAllWindows() # ESC
-        controller = False
+        cv2.destroyAllWindows() 
         break
-print("hello world")
