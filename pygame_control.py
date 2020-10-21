@@ -10,7 +10,7 @@ S = 60
 # Frames per second of the pygame window display
 # A low number also results in input lag, as input information is processed once per frame.
 FPS = 120
-model = PoseNet("drone_vision\\posenet_mobilenet_v1_100_257x257_multi_kpt_stripped.tflite")
+model = PoseNet('drone_vision/posenet_resnet50float_stride16')
 
 class Display(object):
     """ Tello display
@@ -115,9 +115,9 @@ class Display(object):
             self.z_velocity = S
         elif key == pygame.K_DOWN:  # set down velocity
             self.z_velocity = -S
-        elif key == pygame.K_q:     # set yaw counter clockwise velocity
+        elif key == pygame.K_LEFT:     # set yaw counter clockwise velocity
             self.yaw_velocity = -S
-        elif key == pygame.K_e:     # set yaw clockwise velocity
+        elif key == pygame.K_RIGHT:     # set yaw clockwise velocity
             self.yaw_velocity = S
 
     def keyup(self, key):
@@ -131,7 +131,7 @@ class Display(object):
             self.y_velocity = 0
         elif key == pygame.K_UP or key == pygame.K_DOWN:    # set zero up/down velocity
             self.z_velocity = 0
-        elif key == pygame.K_e or key == pygame.K_q:        # set zero yaw velocity
+        elif key == pygame.K_RIGHT or key == pygame.K_LEFT:        # set zero yaw velocity
             self.yaw_velocity = 0
         elif key == pygame.K_t:         # takeoff
             self.tello.takeoff()
