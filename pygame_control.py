@@ -1,5 +1,5 @@
 from djitellopy import Tello
-from drone_vision.posenet import PoseNet
+from drone_vision.posenet import PoseNet, draw_pose
 import cv2
 import pygame
 import numpy as np
@@ -77,14 +77,13 @@ class Display(object):
             self.screen.fill([0, 0, 0])
 
             frame = frame_read.frame
-            img_input = frame.copy()
-            img_input = model.prepare_input(img_input)
-            keypoints = model.predict_singlepose(img_input)
+            keypoints = model.predict_singlepose(frame)
             
             text = "Battery: {}%".format(self.tello.get_battery())
             cv2.putText(frame, text, (5, 420 - 5),
                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-            model.draw_pose(frame, keypoints)
+                
+            draw_pose(frame, keypoints)
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             frame = np.rot90(frame)
             frame = np.flipud(frame)
