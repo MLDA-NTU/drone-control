@@ -1,11 +1,11 @@
 # drone-control
 
-## Set up
 
-Clone the `drone-vision` repo 
+Dependencies
 
+```python
+conda create -n drone python=3.7
+conda activate drone
+conda install tensorflow-gpu
+pip install opencv-python pygame djitellopy
 ```
-git clone https://github.com/MLDA-NTU/drone-vision
-```
-
-Rename the folder to `drone_vision` (change the dash `-` to underscore `_`)
