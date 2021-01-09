@@ -3,13 +3,9 @@
  
  Notes:
   - The pose estimation model currently in use is only capable of tracking 1 subject.
-  - The algorithm currently assumes that the nose is always present (for yaw control).
   - There is network delay of approx. 0.5 - 1 second. If the subject constantly changes position back and forth
     with the same period as the delay, resonance may occur (drone becomes rather unstable).
  """
-
-# TODO: implement and tune PID control.
-# TODO: implement roll / x-axis control (strafing maneuver; revolve around the subject's head to orient camera to the face).
 
 from interface import Interface
 from threading import Thread
@@ -20,22 +16,28 @@ from drone_vision.posenet import PoseNet, draw_pose
 
 ########## SETTINGS ##########
 
-NOSE_CONF_THRES = 0.2   # Minimum confidence score of the nose keypoint for the yaw controller to take effect.
-
-YAW_KP = 0.15
-YAW_KI = 0    # haven't implemented yet
-YAW_KD = 0
-
+# Height PD controller.
 Z_KP = 0.2
-Z_KI = 0      # haven't implemented yet
-Z_KD = 0
-HEIGHT_SETPOINT_OFFSET = 150    # Positive values bring the setpoint up.
+Z_KD = 0.02
+HEIGHT_EAR_CONF_THRES = 0.5    # Minimum confidence threshold of the ear keypoint for the height controller to take effect.
+MAX_HEIGHT = 120               # Maximum height read by tello.get_height() before stopping climb.
+HEIGHT_SETPOINT_OFFSET = 130   # Positive values bring the setpoint up.
 
-Y_SETPOINT = 180   # Desired vertical distance (pixel) between ear & shoulder keypoints (side with highest score).
-Y_CONF_THRES = 0.2   # Minimum confidence score of the keypoints for the y-axis controller to take effect.
+# Pitch PD controller (distance to the head).
+Y_SETPOINT = 200     # Desired vertical distance (pixel) between ear & shoulder keypoints (side with highest score).
+PITCH_Y_CONF_THRES = 0.5   # Minimum confidence score of the keypoints for the y-axis controller to take effect.
 Y_KP = 0.2
-Y_KI = 0      # haven't implemented yet
-Y_KD = 0
+Y_KD = 0.2
+
+# Yaw controller and roll control.
+NOSE_YAW_KP = 0.13      # PD control for nose setpoint. Preferably slow but stable.
+NOSE_YAW_KD = 0.2
+EAR_YAW_KP = 0.3        # PID control for ear setpoint. Preferably fast.
+EAR_YAW_KI = 0.06
+EAR_YAW_KD = 0.15
+YAW_NOSE_CONF_THRES = 0.2   # Minimum confidence score of the nose keypoint for the yaw controller to take effect.
+ROLL_SPEED = 30
+ROLL_EAR_CONF_THRES = 1.0   # Confidence threshold of the ear keypoint below which roll takes effect.
 
 ###############################
 
@@ -58,6 +60,7 @@ yaw_u = 40
 z_u = 0
 y_u = 0
 last_yaw_error = 0
+sum_yaw_error = 0
 last_z_error = 0
 last_y_error = 0
 
@@ -88,55 +91,111 @@ while True:
 
     # Only apply control if Skynet is not under manual control.
     if not skynet.manual_control:
-        
-        # Yaw and height control.
-        yaw_error = nose_coord[0] - FRAME_WIDTH//2
-        z_error = (FRAME_HEIGHT//2 - HEIGHT_SETPOINT_OFFSET) - nose_coord[1]
+        # Height control.
 
-        if nose_conf >= NOSE_CONF_THRES:
-            yaw_u = YAW_KP*yaw_error + YAW_KD*(yaw_error - last_yaw_error)
-            z_u = Z_KP*z_error + Z_KD*(z_error - last_z_error)
+        # If both ears are visible, use the average position of both ears as setpoint.
+        # If only one ear is visible, follow that ear.
+        # If none is visible, move towards where the setpoint was last known. 
+        if not left_ear_conf >= HEIGHT_EAR_CONF_THRES and not right_ear_conf >= HEIGHT_EAR_CONF_THRES:
+            if current_height >= MAX_HEIGHT:
+                z_u = 0
+            elif last_z_error > 0:
+                z_u = 50
+            elif last_z_error < 0:
+                z_u = -50
+            
+            last_z_error = 0   # Reset to zero to avoid garbage value when the ears are re-established later.
 
-            last_yaw_error = yaw_error
-            last_z_error = z_error
         else:
-            # Move towards where the nose was last known.
-            if last_yaw_error > 0:
-                yaw_u = 40
-            elif last_yaw_error < 0:
-                yaw_u = -40
+            if left_ear_conf >= HEIGHT_EAR_CONF_THRES and right_ear_conf >= HEIGHT_EAR_CONF_THRES:
+                z_error = (FRAME_HEIGHT//2 - HEIGHT_SETPOINT_OFFSET) - (left_ear_coord[1] + right_ear_coord[1])/2
+            elif left_ear_conf >= HEIGHT_EAR_CONF_THRES and right_ear_conf < HEIGHT_EAR_CONF_THRES:
+                z_error = (FRAME_HEIGHT//2 - HEIGHT_SETPOINT_OFFSET) - left_ear_coord[1]
+            elif left_ear_conf < HEIGHT_EAR_CONF_THRES and right_ear_conf >= HEIGHT_EAR_CONF_THRES:
+                z_error = (FRAME_HEIGHT//2 - HEIGHT_SETPOINT_OFFSET) - right_ear_coord[1]
 
-            z_u = 0
-
-            # Reset to zero to avoid garbage value when the nose is re-established later.
-            last_yaw_error = 0
-            last_z_error = 0
+            z_u = Z_KP*z_error + Z_KD*(z_error - last_z_error)
+            last_z_error = z_error
 
 
         # Pitch control.
 
         # If both left & right sides have good score, use the average of both.
-        # If only one side has good confidence, use that side. If none are good, do not move along y-axis.
-        left_bool = left_ear_conf >= Y_CONF_THRES and left_shoulder_conf >= Y_CONF_THRES
-        right_bool = right_ear_conf >= Y_CONF_THRES and right_shoulder_conf >= Y_CONF_THRES
+        # If only one side has good confidence, use that side.
+        # If none are good, do not move along y-axis (set y_u to zero).
+        left_bool = left_ear_conf >= PITCH_Y_CONF_THRES and left_shoulder_conf >= PITCH_Y_CONF_THRES
+        right_bool = right_ear_conf >= PITCH_Y_CONF_THRES and right_shoulder_conf >= PITCH_Y_CONF_THRES
 
-        if left_bool or right_bool:
-            ear_shoulder_dist = (left_bool*(left_shoulder_coord[1]-left_ear_coord[1]) +
-                                right_bool*(right_shoulder_coord[1]-right_ear_coord[1])) / (left_bool + right_bool)
-            y_error = Y_SETPOINT - ear_shoulder_dist
-            y_u = Y_KP*y_error + Y_KD*(y_error - last_y_error)
-
-            last_y_error = y_error
+        if left_bool and right_bool:
+            ear_shoulder_dist = ((left_shoulder_coord[1]-left_ear_coord[1]) + (right_shoulder_coord[1]-right_ear_coord[1])) / 2
+        elif left_bool:
+            ear_shoulder_dist = (left_shoulder_coord[1]-left_ear_coord[1])
+        elif right_bool:
+            ear_shoulder_dist = (right_shoulder_coord[1]-right_ear_coord[1])
         else:
-            y_u = 0
+            ear_shoulder_dist = Y_SETPOINT
             last_y_error = 0
+            
+        y_error = Y_SETPOINT - ear_shoulder_dist
+        y_u = Y_KP*y_error + Y_KD*(y_error - last_y_error)
+
+        last_y_error = y_error
+            
+
+        # Yaw and roll control (orient the camera towards the face).
+
+        if nose_conf >= YAW_NOSE_CONF_THRES:
+            # Yaw controller follows the nose.
+            yaw_error = nose_coord[0] - FRAME_WIDTH//2
+            yaw_u = NOSE_YAW_KP*yaw_error + NOSE_YAW_KD*(yaw_error - last_yaw_error)
+            last_yaw_error = yaw_error
+
+            # Roll until both ears are visible.
+            if left_ear_conf < ROLL_EAR_CONF_THRES and right_ear_conf >= ROLL_EAR_CONF_THRES:
+                skynet.x_velocity = ROLL_SPEED
+            elif left_ear_conf >= ROLL_EAR_CONF_THRES and right_ear_conf < ROLL_EAR_CONF_THRES:
+                skynet.x_velocity = -ROLL_SPEED
+            else:
+                skynet.x_velocity = 0
+
+        # If no subject is visible (no nose and ears), yaw towards where the subject was last known.
+        elif left_ear_conf < ROLL_EAR_CONF_THRES and right_ear_conf < ROLL_EAR_CONF_THRES:
+            if last_yaw_error > 0:
+                yaw_u = 30
+            elif last_yaw_error < 0:
+                yaw_u = -30
+
+            last_yaw_error = 0   # Reset to zero to avoid garbage value when the nose is re-established later.
+
+        # If the nose is not visible but the ear(s) is/are visible...
+        else:
+            # Left ear has higher confidence: yaw controller follows left ear, roll to the left.
+            if left_ear_conf - right_ear_conf > 2:
+                skynet.x_velocity = -ROLL_SPEED
+                yaw_error = left_ear_coord[0] - FRAME_WIDTH//2
+            # Right ear has higher or similar confidence to the left ear: yaw controller follows right ear, roll to the right.
+            else:
+                skynet.x_velocity = ROLL_SPEED
+                yaw_error = right_ear_coord[0] - FRAME_WIDTH//2
+            
+            yaw_u = EAR_YAW_KP*yaw_error + EAR_YAW_KI*sum_yaw_error + EAR_YAW_KD*(yaw_error - last_yaw_error)
+            
+            # Windup reset.
+            if yaw_error*last_yaw_error < 0:
+                sum_yaw_error = 0
+            else:
+                sum_yaw_error += yaw_error
+
+            last_yaw_error = yaw_error
 
 
         # Clip and apply control values. Also implement deadzone if necessary.
         skynet.yaw_velocity = int(np.clip(yaw_u, -100, 100))
+
         skynet.z_velocity = int(np.clip(z_u, -30, 30))
+        skynet.z_velocity = (abs(skynet.z_velocity) > 5)*skynet.z_velocity
+
         skynet.y_velocity = int(np.clip(y_u, -30, 30))
-        skynet.y_velocity = (abs(skynet.y_velocity) > 5)*skynet.y_velocity
         skynet.update()
 
 
@@ -150,8 +209,11 @@ while True:
     text = "y_vel: {}".format( str(skynet.y_velocity) )
     cv2.putText(posenet_frame, text, (5, 420), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 
-    text = "height: {}".format( str(current_height) )
-    cv2.putText(posenet_frame, text, (5, 450), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+    text = "x_vel: {}".format( str(skynet.x_velocity) )
+    cv2.putText(posenet_frame, text, (5, 450), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+
+    text = "ear_conf: {}; {}".format( str(left_ear_conf), str(right_ear_conf) )
+    cv2.putText(posenet_frame, text, (5, 480), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
     # Draw the setpoint.
     cv2.circle(posenet_frame, (FRAME_WIDTH//2, FRAME_HEIGHT//2 - HEIGHT_SETPOINT_OFFSET), 6, (0, 0, 255), -1)
