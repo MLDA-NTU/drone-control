@@ -35,9 +35,10 @@ NOSE_YAW_KD = 0.2
 EAR_YAW_KP = 0.3        # PID control for ear setpoint. Preferably fast.
 EAR_YAW_KI = 0.06
 EAR_YAW_KD = 0.15
-YAW_NOSE_CONF_THRES = 0.2   # Minimum confidence score of the nose keypoint for the yaw controller to take effect.
+YR_NOSE_CONF_THRES = 0.2   # Minimum confidence of the nose keypoint for the yaw & roll control to follow it.
 ROLL_SPEED = 30
-ROLL_EAR_CONF_THRES = 1.0   # Confidence threshold of the ear keypoint below which roll takes effect.
+YR_EAR_CONF_THRES = 1.0    # Confidence threshold of the ear keypoint below which yaw & roll control
+                           # maneuvers the drone around the head.
 
 ###############################
 
@@ -144,22 +145,22 @@ while True:
 
         # Yaw and roll control (orient the camera towards the face).
 
-        if nose_conf >= YAW_NOSE_CONF_THRES:
+        if nose_conf >= YR_NOSE_CONF_THRES:
             # Yaw controller follows the nose.
             yaw_error = nose_coord[0] - FRAME_WIDTH//2
             yaw_u = NOSE_YAW_KP*yaw_error + NOSE_YAW_KD*(yaw_error - last_yaw_error)
             last_yaw_error = yaw_error
 
             # Roll until both ears are visible.
-            if left_ear_conf < ROLL_EAR_CONF_THRES and right_ear_conf >= ROLL_EAR_CONF_THRES:
+            if left_ear_conf < YR_EAR_CONF_THRES and right_ear_conf >= YR_EAR_CONF_THRES:
                 skynet.x_velocity = ROLL_SPEED
-            elif left_ear_conf >= ROLL_EAR_CONF_THRES and right_ear_conf < ROLL_EAR_CONF_THRES:
+            elif left_ear_conf >= YR_EAR_CONF_THRES and right_ear_conf < YR_EAR_CONF_THRES:
                 skynet.x_velocity = -ROLL_SPEED
             else:
                 skynet.x_velocity = 0
 
         # If no subject is visible (no nose and ears), yaw towards where the subject was last known.
-        elif left_ear_conf < ROLL_EAR_CONF_THRES and right_ear_conf < ROLL_EAR_CONF_THRES:
+        elif left_ear_conf < YR_EAR_CONF_THRES and right_ear_conf < YR_EAR_CONF_THRES:
             if last_yaw_error > 0:
                 yaw_u = 30
             elif last_yaw_error < 0:
