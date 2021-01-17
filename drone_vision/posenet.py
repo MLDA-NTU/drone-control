@@ -59,6 +59,8 @@ class PoseNet():
     def __init__(self, model_path):
         self.model = tf.saved_model.load(model_path)
         self.model_fn = self.model.signatures["serving_default"]
+        self.HEATMAPS_INDEX = list(self.model_fn.structured_outputs.keys()).index('float_heatmaps:0')
+        self.OFFSETS_INDEX = list(self.model_fn.structured_outputs.keys()).index('float_short_offsets:0')
         self.OUTPUT_STRIDE = 16
         self.INPUT_WIDTH = self.INPUT_HEIGHT = 224
         
@@ -81,7 +83,10 @@ class PoseNet():
     def predict_singlepose(self, img):
         ''' Wrapper around decode_singlepose. Return a list of 17 keypoints '''
         img_input = self.prepare_input(img)
-        heatmaps, offsets, _, _ = self.predict(img_input)
+        output = list(self.predict(img_input))
+
+        heatmaps = output[self.HEATMAPS_INDEX]
+        offsets = output[self.OFFSETS_INDEX]
 
         heatmaps = np.squeeze(heatmaps)
         offsets = np.squeeze(offsets)
