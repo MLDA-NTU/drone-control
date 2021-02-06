@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 import cv2
 
-from posenet import PoseNet, detect_pose, draw_pose, draw_keypoints
+from posenet import PoseNet, detect_pose, draw_pose, draw_keypoints, draw_skel_and_kp
 
 # itialize posenet from the package
 model_path = 'posenet_resnet50float_stride16'
@@ -24,13 +24,13 @@ while True:
     success, img = cap.read()   # read webcam capture
 
     # get keypoints for single pose estimation. it is a list of 17 keypoints
-    keypoints = posenet.predict_singlepose(img)
+    pose_scores, keypoint_scores, keypoint_coords = posenet.estimate_multiple_poses(img)
 
     # track nose
-    nose_pos = keypoints[0]['position']
+    """nose_pos = keypoints[0]['position']
     nose_x = nose_pos[0] - CENTER_X
     nose_y = nose_pos[1] - CENTER_Y
-    cv2.putText(img,f'x_distance:{nose_x} y_distance:{nose_y}', (0,CENTER_Y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
+    cv2.putText(img,f'x_distance:{nose_x} y_distaqnce:{nose_y}', (0,CENTER_Y), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
 
     # draw keypoints to the original image
     threshold = 0.0
@@ -41,9 +41,13 @@ while True:
     detected_poses = [pose for pose, detected in poses.items() if detected]
     detected_poses = ' '.join(detected_poses) if detected_poses else 'None'
     
-    cv2.putText(img, f'{detected_poses} detected', (0,300), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
+    cv2.putText(img, f'{detected_poses} detected', (0,300), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)"""
 
-    cv2.imshow("pose", img)                 # show the image with keypoints
+    overlay_image = draw_skel_and_kp(
+        img, pose_scores, keypoint_scores, keypoint_coords,
+        min_pose_score=0.0, min_part_score=0.1)
+
+    cv2.imshow('posenet', overlay_image)# show the image with keypoints
     if cv2.waitKey(1) & 0xFF == ord('q'):   # terminate window when press q
         break
 
