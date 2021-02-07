@@ -25,6 +25,9 @@ while True:
 
     # get keypoints for single pose estimation. it is a list of 17 keypoints
     pose_scores, keypoint_scores, keypoint_coords = posenet.estimate_multiple_poses(img)
+    # print(f"pose_scores: {pose_scores.shape}")
+    # print(f"keypoint_scores: {keypoint_scores.shape}")
+    # print(f"keypoint_coords: {keypoint_coords.shape}")
 
     # track nose
     """nose_pos = keypoints[0]['position']

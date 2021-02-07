@@ -33,7 +33,7 @@ class Interface():
         pygame.display.set_caption("Tello video stream")
         self.screen = pygame.display.set_mode([800, 600])
         self.key = set()
-        self.FPS = 120
+        self.FPS = FPS
 
         # Init Tello object that interacts with the Tello drone
         self.tello = Tello()

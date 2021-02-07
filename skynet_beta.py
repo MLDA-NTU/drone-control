@@ -11,7 +11,7 @@ from interface import Interface
 from threading import Thread
 import numpy as np
 import cv2
-from drone_vision.posenet import PoseNet, draw_pose
+from drone_vision.posenet import PoseNet, draw_skel_and_kp
 
 
 ########## SETTINGS ##########
@@ -71,24 +71,33 @@ while True:
 
     # Pose estimation.
     posenet_frame = skynet.raw_frame
-    keypoints = model.predict_singlepose(posenet_frame)
-    draw_pose(posenet_frame, keypoints)
+    # get keypoints for single pose estimation. it is a list of 17 keypoints
+    pose_scores, keypoint_scores, keypoint_coords = model.estimate_multiple_poses(posenet_frame)
 
     # For readability.
     FRAME_WIDTH = posenet_frame.shape[1]
     FRAME_HEIGHT = posenet_frame.shape[0]
     current_height = skynet.tello.get_height()
 
-    nose_coord = keypoints[0]["position"]
-    nose_conf = keypoints[0]["score"]
-    left_ear_coord = keypoints[3]["position"]
-    left_ear_conf = keypoints[3]["score"]
-    right_ear_coord = keypoints[4]["position"]
-    right_ear_conf = keypoints[4]["score"]
-    left_shoulder_coord = keypoints[5]["position"]
-    left_shoulder_conf = keypoints[5]["score"]
-    right_shoulder_coord = keypoints[6]["position"]
-    right_shoulder_conf = keypoints[6]["score"]
+    #take the coords of the first person only
+    nose_coord = keypoint_coords[0,0,:]
+    nose_conf = keypoint_scores[0,0]
+    left_ear_coord = keypoint_coords[0,3,:]
+    left_ear_conf = keypoint_scores[0,3]
+    right_ear_coord = keypoint_coords[0,4,:]
+    right_ear_conf = keypoint_scores[0,4]
+    left_shoulder_coord = keypoint_coords[0,5,:]
+    left_shoulder_conf = keypoint_scores[0,5]
+    right_shoulder_coord = keypoint_coords[0,6,:]
+    right_shoulder_conf = keypoint_scores[0,6]
+
+    overlay_image = draw_skel_and_kp(
+        posenet_frame, pose_scores, keypoint_scores, keypoint_coords,
+        min_pose_score=0.0, min_part_score=0.1)
+
+    cv2.imshow('posenet', overlay_image)  # show the image with keypoints
+    if cv2.waitKey(1) & 0xFF == ord('q'):  # terminate window when press q
+        break
 
     # Only apply control if Skynet is not under manual control.
     if not skynet.manual_control:
