@@ -91,7 +91,7 @@ while True:
     right_shoulder_coord = keypoint_coords[0,6,:]
     right_shoulder_conf = keypoint_scores[0,6]
 
-    posenet_image = draw_skel_and_kp(
+    posenet_frame = draw_skel_and_kp(
         posenet_frame, pose_scores, keypoint_scores, keypoint_coords,
         min_pose_score=0.0, min_part_score=0.1)
 
@@ -156,7 +156,7 @@ while True:
 
         if nose_conf >= YR_NOSE_CONF_THRES:
             # Yaw controller follows the nose.
-            yaw_error = nose_coord[0] - FRAME_WIDTH//2
+            yaw_error = nose_coord[1] - FRAME_WIDTH//2
             yaw_u = NOSE_YAW_KP*yaw_error + NOSE_YAW_KD*(yaw_error - last_yaw_error)
             last_yaw_error = yaw_error
 
