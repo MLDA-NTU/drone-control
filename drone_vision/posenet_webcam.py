@@ -28,6 +28,7 @@ while True:
     # print(f"pose_scores: {pose_scores.shape}")
     # print(f"keypoint_scores: {keypoint_scores.shape}")
     # print(f"keypoint_coords: {keypoint_coords.shape}")
+    print(keypoint_scores[0])
 
     # track nose
     """nose_pos = keypoints[0]['position']

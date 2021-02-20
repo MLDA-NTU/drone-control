@@ -91,13 +91,13 @@ while True:
     right_shoulder_coord = keypoint_coords[0,6,:]
     right_shoulder_conf = keypoint_scores[0,6]
 
-    overlay_image = draw_skel_and_kp(
+    posenet_image = draw_skel_and_kp(
         posenet_frame, pose_scores, keypoint_scores, keypoint_coords,
         min_pose_score=0.0, min_part_score=0.1)
 
-    cv2.imshow('posenet', overlay_image)  # show the image with keypoints
-    if cv2.waitKey(1) & 0xFF == ord('q'):  # terminate window when press q
-        break
+    # cv2.imshow('posenet', overlay_image)  # show the image with keypoints
+    # if cv2.waitKey(1) & 0xFF == ord('q'):  # terminate window when press q
+    #     break
 
     # Only apply control if Skynet is not under manual control.
     if not skynet.manual_control:
