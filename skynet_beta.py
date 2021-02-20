@@ -118,11 +118,11 @@ while True:
 
         else:
             if left_ear_conf >= HEIGHT_EAR_CONF_THRES and right_ear_conf >= HEIGHT_EAR_CONF_THRES:
-                z_error = (FRAME_HEIGHT//2 - HEIGHT_SETPOINT_OFFSET) - (left_ear_coord[1] + right_ear_coord[1])/2
+                z_error = (FRAME_HEIGHT//2 - HEIGHT_SETPOINT_OFFSET) - (left_ear_coord[0] + right_ear_coord[0])/2
             elif left_ear_conf >= HEIGHT_EAR_CONF_THRES and right_ear_conf < HEIGHT_EAR_CONF_THRES:
-                z_error = (FRAME_HEIGHT//2 - HEIGHT_SETPOINT_OFFSET) - left_ear_coord[1]
+                z_error = (FRAME_HEIGHT//2 - HEIGHT_SETPOINT_OFFSET) - left_ear_coord[0]
             elif left_ear_conf < HEIGHT_EAR_CONF_THRES and right_ear_conf >= HEIGHT_EAR_CONF_THRES:
-                z_error = (FRAME_HEIGHT//2 - HEIGHT_SETPOINT_OFFSET) - right_ear_coord[1]
+                z_error = (FRAME_HEIGHT//2 - HEIGHT_SETPOINT_OFFSET) - right_ear_coord[0]
 
             z_u = Z_KP*z_error + Z_KD*(z_error - last_z_error)
             last_z_error = z_error
@@ -137,11 +137,11 @@ while True:
         right_bool = right_ear_conf >= PITCH_Y_CONF_THRES and right_shoulder_conf >= PITCH_Y_CONF_THRES
 
         if left_bool and right_bool:
-            ear_shoulder_dist = ((left_shoulder_coord[1]-left_ear_coord[1]) + (right_shoulder_coord[1]-right_ear_coord[1])) / 2
+            ear_shoulder_dist = ((left_shoulder_coord[0]-left_ear_coord[0]) + (right_shoulder_coord[0]-right_ear_coord[0])) / 2
         elif left_bool:
-            ear_shoulder_dist = (left_shoulder_coord[1]-left_ear_coord[1])
+            ear_shoulder_dist = (left_shoulder_coord[0]-left_ear_coord[0])
         elif right_bool:
-            ear_shoulder_dist = (right_shoulder_coord[1]-right_ear_coord[1])
+            ear_shoulder_dist = (right_shoulder_coord[0]-right_ear_coord[0])
         else:
             ear_shoulder_dist = Y_SETPOINT
             last_y_error = 0
@@ -182,11 +182,11 @@ while True:
             # Left ear has higher confidence: yaw controller follows left ear, roll to the left.
             if left_ear_conf - right_ear_conf > 2:
                 skynet.x_velocity = -ROLL_SPEED
-                yaw_error = left_ear_coord[0] - FRAME_WIDTH//2
+                yaw_error = left_ear_coord[1] - FRAME_WIDTH//2
             # Right ear has higher or similar confidence to the left ear: yaw controller follows right ear, roll to the right.
             else:
                 skynet.x_velocity = ROLL_SPEED
-                yaw_error = right_ear_coord[0] - FRAME_WIDTH//2
+                yaw_error = right_ear_coord[1] - FRAME_WIDTH//2
             
             yaw_u = EAR_YAW_KP*yaw_error + EAR_YAW_KI*sum_yaw_error + EAR_YAW_KD*(yaw_error - last_yaw_error)
             
