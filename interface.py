@@ -31,7 +31,7 @@ class Interface():
 
         # Create pygame window
         pygame.display.set_caption("Tello video stream")
-        self.screen = pygame.display.set_mode([800, 600])
+        self.screen = pygame.display.set_mode([480, 320])
         self.key = set()
         self.FPS = FPS
 

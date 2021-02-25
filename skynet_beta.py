@@ -229,5 +229,5 @@ while True:
     cv2.circle(posenet_frame, (FRAME_WIDTH//2, FRAME_HEIGHT//2 - HEIGHT_SETPOINT_OFFSET), 6, (0, 0, 255), -1)
 
     # Update the frame.
-    posenet_frame = cv2.resize(posenet_frame, (480, 360))
+    posenet_frame = cv2.resize(posenet_frame, (800, 600))
     cv2.imshow('PoseNet Output', posenet_frame)
