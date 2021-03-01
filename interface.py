@@ -68,6 +68,7 @@ class Interface():
 
         stop = False
         prev_time = time.time()
+        keymap = {}
         while not stop:
             if(time.time() - prev_time > 1 / self.FPS):
                 for event in pygame.event.get():
@@ -76,6 +77,8 @@ class Interface():
                     elif event.type == pygame.QUIT:
                         stop = True
                     elif event.type == pygame.KEYDOWN:
+                        keymap[event.scancode] = event.unicode
+                        print('keydown %s pressed' % event.unicode)
                         if event.key == pygame.K_ESCAPE:
                             stop = True
                         else:
@@ -83,6 +86,7 @@ class Interface():
                     elif event.type == pygame.KEYUP:
                         if get_key(self.key_dictionary, event.key) in self.key:
                             self.key.remove(self.keyup(event.key))
+                        print('keyup %s pressed' % keymap[event.scancode])
 
                 if frame_read.stopped:
                     break
@@ -93,7 +97,7 @@ class Interface():
                 frame = self.raw_frame.copy()
                 
                 text = "Battery: {}%".format(self.tello.get_battery())
-                cv2.putText(frame, text, (5, 420 - 5),
+                cv2.putText(frame, text, (5, 200 - 5),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 frame = np.rot90(frame)
@@ -102,7 +106,7 @@ class Interface():
                 frame = pygame.surfarray.make_surface(frame)
                 self.screen.blit(frame, (0, 0))
                 pygame.display.update()
-                print("[DEBUG] Key press: {}".format(self.key))
+                #print("[DEBUG] Key press: {}".format(self.key))
                 prev_time = time.time()
                 # time.sleep(1 / self.FPS)
 
